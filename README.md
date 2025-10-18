@@ -40,7 +40,7 @@ A comprehensive Python application for fetching court listings and cause lists f
 
 1. **Clone or download the project**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/nilesh-r/eCourts_Scraper.git
    cd eCourts_Scraper
    ```
 

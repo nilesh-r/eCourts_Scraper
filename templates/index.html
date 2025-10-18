@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eCourts Scraper - Real-time Court Data</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .loading {
+            display: none;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+        }
+        .btn-success {
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+            border: none;
+        }
+        .btn-warning {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+            border: none;
+        }
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .alert {
+            border: none;
+            border-radius: 10px;
+        }
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="text-center mb-4">
+                    <h1 class="display-4 text-primary">
+                        <i class="fas fa-gavel"></i> eCourts Scraper
+                    </h1>
+                    <p class="lead text-muted">Real-time Court Data Fetching & Cause List Download</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Court Selection Panel -->
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-building"></i> Court Selection</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="courtForm">
+                            <div class="mb-3">
+                                <label for="stateSelect" class="form-label">State</label>
+                                <select class="form-select" id="stateSelect" required>
+                                    <option value="">Select State</option>
+                                </select>
+                                <div class="loading mt-2">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="districtSelect" class="form-label">District</label>
+                                <select class="form-select" id="districtSelect" disabled required>
+                                    <option value="">Select District</option>
+                                </select>
+                                <div class="loading mt-2">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="complexSelect" class="form-label">Court Complex</label>
+                                <select class="form-select" id="complexSelect" disabled required>
+                                    <option value="">Select Court Complex</option>
+                                </select>
+                                <div class="loading mt-2">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="courtSelect" class="form-label">Court</label>
+                                <select class="form-select" id="courtSelect" disabled>
+                                    <option value="">Select Court (Optional)</option>
+                                </select>
+                                <div class="loading mt-2">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="dateInput" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="dateInput" required>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary" id="fetchCauseListBtn">
+                                    <i class="fas fa-search"></i> Fetch Cause List
+                                </button>
+                                <button type="button" class="btn btn-success" id="downloadCauseListBtn" disabled>
+                                    <i class="fas fa-download"></i> Download PDF
+                                </button>
+                                <button type="button" class="btn btn-warning" id="downloadAllBtn" disabled>
+                                    <i class="fas fa-download"></i> Download All Courts PDFs
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Case Search Panel -->
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-search"></i> Case Search</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="caseSearchForm">
+                            <div class="mb-3">
+                                <label for="caseType" class="form-label">Case Type</label>
+                                <input type="text" class="form-control" id="caseType" placeholder="e.g., Civil, Criminal" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="caseNumber" class="form-label">Case Number</label>
+                                <input type="text" class="form-control" id="caseNumber" placeholder="e.g., 12345" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="caseYear" class="form-label">Case Year</label>
+                                <input type="number" class="form-control" id="caseYear" placeholder="e.g., 2023" required>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-success" id="searchCaseBtn">
+                                    <i class="fas fa-search"></i> Search Case
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delhi Courts Panel -->
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-university"></i> Delhi Courts</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="delhiForm">
+                            <div class="mb-3">
+                                <label for="delhiDateInput" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="delhiDateInput" required>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-warning" id="fetchDelhiCauseListBtn">
+                                    <i class="fas fa-search"></i> Fetch Delhi Cause List
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-list"></i> Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsContainer">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                <p>Select a court and date to fetch cause list, or search for a specific case.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class ECourtsApp {
+            constructor() {
+                this.currentState = null;
+                this.currentDistrict = null;
+                this.currentComplex = null;
+                this.currentCourt = null;
+                this.initializeApp();
+            }
+
+            initializeApp() {
+                this.setupEventListeners();
+                this.loadStates();
+                this.setDefaultDate();
+            }
+
+            setupEventListeners() {
+                // Court selection
+                document.getElementById('stateSelect').addEventListener('change', (e) => this.onStateChange(e));
+                document.getElementById('districtSelect').addEventListener('change', (e) => this.onDistrictChange(e));
+                document.getElementById('complexSelect').addEventListener('change', (e) => this.onComplexChange(e));
+                document.getElementById('courtSelect').addEventListener('change', (e) => this.onCourtChange(e));
+
+                // Buttons
+                document.getElementById('fetchCauseListBtn').addEventListener('click', () => this.fetchCauseList());
+                document.getElementById('downloadCauseListBtn').addEventListener('click', () => this.downloadCauseList());
+                document.getElementById('downloadAllBtn').addEventListener('click', () => this.downloadAllCauseLists());
+                document.getElementById('searchCaseBtn').addEventListener('click', () => this.searchCase());
+                document.getElementById('fetchDelhiCauseListBtn').addEventListener('click', () => this.fetchDelhiCauseList());
+            }
+
+            setDefaultDate() {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('dateInput').value = today;
+                document.getElementById('delhiDateInput').value = today;
+            }
+
+            async loadStates() {
+                try {
+                    this.showLoading('stateSelect');
+                    const response = await fetch('/api/states');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const select = document.getElementById('stateSelect');
+                        select.innerHTML = '<option value="">Select State</option>';
+                        data.data.forEach(state => {
+                            const option = document.createElement('option');
+                            option.value = state.value;
+                            option.textContent = state.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        this.showError('Failed to load states: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error loading states: ' + error.message);
+                } finally {
+                    this.hideLoading('stateSelect');
+                }
+            }
+
+            async onStateChange(event) {
+                const stateCode = event.target.value;
+                this.currentState = stateCode;
+                
+                if (stateCode) {
+                    await this.loadDistricts(stateCode);
+                } else {
+                    this.resetDistrict();
+                }
+            }
+
+            async loadDistricts(stateCode) {
+                try {
+                    this.showLoading('districtSelect');
+                    const response = await fetch(`/api/districts/${stateCode}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const select = document.getElementById('districtSelect');
+                        select.innerHTML = '<option value="">Select District</option>';
+                        select.disabled = false;
+                        data.data.forEach(district => {
+                            const option = document.createElement('option');
+                            option.value = district.value;
+                            option.textContent = district.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        this.showError('Failed to load districts: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error loading districts: ' + error.message);
+                } finally {
+                    this.hideLoading('districtSelect');
+                }
+            }
+
+            async onDistrictChange(event) {
+                const districtCode = event.target.value;
+                this.currentDistrict = districtCode;
+                
+                if (districtCode) {
+                    await this.loadCourtComplexes();
+                } else {
+                    this.resetComplex();
+                }
+            }
+
+            async loadCourtComplexes() {
+                try {
+                    this.showLoading('complexSelect');
+                    const response = await fetch(`/api/court-complexes?state_code=${this.currentState}&district_code=${this.currentDistrict}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const select = document.getElementById('complexSelect');
+                        select.innerHTML = '<option value="">Select Court Complex</option>';
+                        select.disabled = false;
+                        data.data.forEach(complex => {
+                            const option = document.createElement('option');
+                            option.value = complex.value;
+                            option.textContent = complex.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        this.showError('Failed to load court complexes: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error loading court complexes: ' + error.message);
+                } finally {
+                    this.hideLoading('complexSelect');
+                }
+            }
+
+            async onComplexChange(event) {
+                const complexCode = event.target.value;
+                this.currentComplex = complexCode;
+                
+                if (complexCode) {
+                    await this.loadCourts();
+                } else {
+                    this.resetCourt();
+                }
+            }
+
+            async loadCourts() {
+                try {
+                    this.showLoading('courtSelect');
+                    const response = await fetch(`/api/courts?state_code=${this.currentState}&district_code=${this.currentDistrict}&complex_code=${this.currentComplex}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const select = document.getElementById('courtSelect');
+                        select.innerHTML = '<option value="">Select Court (Optional)</option>';
+                        select.disabled = false;
+                        data.data.forEach(court => {
+                            const option = document.createElement('option');
+                            option.value = court.value;
+                            option.textContent = court.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        this.showError('Failed to load courts: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error loading courts: ' + error.message);
+                } finally {
+                    this.hideLoading('courtSelect');
+                }
+            }
+
+            onCourtChange(event) {
+                this.currentCourt = event.target.value;
+            }
+
+            resetDistrict() {
+                document.getElementById('districtSelect').innerHTML = '<option value="">Select District</option>';
+                document.getElementById('districtSelect').disabled = true;
+                this.resetComplex();
+            }
+
+            resetComplex() {
+                document.getElementById('complexSelect').innerHTML = '<option value="">Select Court Complex</option>';
+                document.getElementById('complexSelect').disabled = true;
+                this.resetCourt();
+            }
+
+            resetCourt() {
+                document.getElementById('courtSelect').innerHTML = '<option value="">Select Court (Optional)</option>';
+                document.getElementById('courtSelect').disabled = true;
+            }
+
+            async fetchCauseList() {
+                if (!this.currentState || !this.currentDistrict || !this.currentComplex) {
+                    this.showError('Please select state, district, and court complex');
+                    return;
+                }
+
+                const date = document.getElementById('dateInput').value;
+                if (!date) {
+                    this.showError('Please select a date');
+                    return;
+                }
+
+                try {
+                    this.showLoading('fetchCauseListBtn');
+                    let url = `/api/cause-list?state_code=${this.currentState}&district_code=${this.currentDistrict}&court_code=${this.currentComplex}&date=${date}`;
+                    
+                    if (this.currentCourt) {
+                        url = `/api/cause-list?state_code=${this.currentState}&district_code=${this.currentDistrict}&court_code=${this.currentCourt}&date=${date}`;
+                    }
+
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayCauseList(data.data);
+                        document.getElementById('downloadCauseListBtn').disabled = false;
+                        document.getElementById('downloadAllBtn').disabled = false;
+                    } else {
+                        this.showError('Failed to fetch cause list: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error fetching cause list: ' + error.message);
+                } finally {
+                    this.hideLoading('fetchCauseListBtn');
+                }
+            }
+
+            async downloadCauseList() {
+                if (!this.currentState || !this.currentDistrict || !this.currentComplex) {
+                    this.showError('Please select state, district, and court complex');
+                    return;
+                }
+
+                const date = document.getElementById('dateInput').value;
+                if (!date) {
+                    this.showError('Please select a date');
+                    return;
+                }
+
+                try {
+                    let url = `/api/download-cause-list?state_code=${this.currentState}&district_code=${this.currentDistrict}&court_code=${this.currentComplex}&date=${date}`;
+                    
+                    if (this.currentCourt) {
+                        url = `/api/download-cause-list?state_code=${this.currentState}&district_code=${this.currentDistrict}&court_code=${this.currentCourt}&date=${date}`;
+                    }
+
+                    window.open(url, '_blank');
+                } catch (error) {
+                    this.showError('Error downloading PDF: ' + error.message);
+                }
+            }
+
+            async downloadAllCauseLists() {
+                if (!this.currentState || !this.currentDistrict || !this.currentComplex) {
+                    this.showError('Please select state, district, and court complex');
+                    return;
+                }
+
+                const date = document.getElementById('dateInput').value;
+                if (!date) {
+                    this.showError('Please select a date');
+                    return;
+                }
+
+                try {
+                    this.showLoading('downloadAllBtn');
+                    const response = await fetch(`/api/download-all-cause-lists?state_code=${this.currentState}&district_code=${this.currentDistrict}&complex_code=${this.currentComplex}&date=${date}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showSuccess(`Downloaded ${data.data.length} PDF files successfully!`);
+                        data.data.forEach(file => {
+                            console.log(`Downloaded: ${file.court_name} - ${file.file_path}`);
+                        });
+                    } else {
+                        this.showError('Failed to download cause lists: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error downloading cause lists: ' + error.message);
+                } finally {
+                    this.hideLoading('downloadAllBtn');
+                }
+            }
+
+            async searchCase() {
+                const caseType = document.getElementById('caseType').value;
+                const caseNumber = document.getElementById('caseNumber').value;
+                const caseYear = document.getElementById('caseYear').value;
+
+                if (!caseType || !caseNumber || !caseYear) {
+                    this.showError('Please fill all case details');
+                    return;
+                }
+
+                if (!this.currentState || !this.currentDistrict || !this.currentComplex) {
+                    this.showError('Please select state, district, and court complex first');
+                    return;
+                }
+
+                try {
+                    this.showLoading('searchCaseBtn');
+                    const response = await fetch('/api/search-case', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            case_type: caseType,
+                            case_number: caseNumber,
+                            case_year: caseYear,
+                            state_code: this.currentState,
+                            district_code: this.currentDistrict,
+                            court_code: this.currentCourt || this.currentComplex
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayCaseDetails(data.data);
+                    } else {
+                        this.showError('Case not found: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error searching case: ' + error.message);
+                } finally {
+                    this.hideLoading('searchCaseBtn');
+                }
+            }
+
+            async fetchDelhiCauseList() {
+                const date = document.getElementById('delhiDateInput').value;
+                if (!date) {
+                    this.showError('Please select a date');
+                    return;
+                }
+
+                try {
+                    this.showLoading('fetchDelhiCauseListBtn');
+                    const response = await fetch(`/api/delhi-cause-list?date=${date}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayCauseList(data.data, 'Delhi Courts');
+                    } else {
+                        this.showError('Failed to fetch Delhi cause list: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Error fetching Delhi cause list: ' + error.message);
+                } finally {
+                    this.hideLoading('fetchDelhiCauseListBtn');
+                }
+            }
+
+            displayCauseList(causeList, title = 'Cause List') {
+                const container = document.getElementById('resultsContainer');
+                
+                if (!causeList || causeList.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-3"></i>
+                            <p>No cases found for the selected date and court.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-list"></i> ${title}</h5>
+                        <span class="badge bg-primary">${causeList.length} cases found</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                `;
+
+                // Get headers from first row
+                const headers = Object.keys(causeList[0]);
+                headers.forEach(header => {
+                    html += `<th>${header}</th>`;
+                });
+                html += `</tr></thead><tbody>`;
+
+                // Add data rows
+                causeList.forEach(caseItem => {
+                    html += `<tr>`;
+                    headers.forEach(header => {
+                        html += `<td>${caseItem[header] || '-'}</td>`;
+                    });
+                    html += `</tr>`;
+                });
+
+                html += `</tbody></table></div>`;
+                container.innerHTML = html;
+            }
+
+            displayCaseDetails(caseDetails) {
+                const container = document.getElementById('resultsContainer');
+                
+                let html = `
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5><i class="fas fa-search"></i> Case Details</h5>
+                    </div>
+                    <div class="row">
+                `;
+
+                Object.entries(caseDetails).forEach(([key, value]) => {
+                    if (value) {
+                        html += `
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-muted">${key.replace(/_/g, ' ').toUpperCase()}</h6>
+                                        <p class="card-text">${value}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += `</div>`;
+                container.innerHTML = html;
+            }
+
+            showLoading(elementId) {
+                const element = document.getElementById(elementId);
+                const loading = element.parentNode.querySelector('.loading');
+                if (loading) {
+                    loading.style.display = 'block';
+                }
+                if (element.tagName === 'BUTTON') {
+                    element.disabled = true;
+                    element.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+                }
+            }
+
+            hideLoading(elementId) {
+                const element = document.getElementById(elementId);
+                const loading = element.parentNode.querySelector('.loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+                if (element.tagName === 'BUTTON') {
+                    element.disabled = false;
+                    // Restore original button text
+                    if (elementId === 'fetchCauseListBtn') {
+                        element.innerHTML = '<i class="fas fa-search"></i> Fetch Cause List';
+                    } else if (elementId === 'searchCaseBtn') {
+                        element.innerHTML = '<i class="fas fa-search"></i> Search Case';
+                    } else if (elementId === 'fetchDelhiCauseListBtn') {
+                        element.innerHTML = '<i class="fas fa-search"></i> Fetch Delhi Cause List';
+                    } else if (elementId === 'downloadAllBtn') {
+                        element.innerHTML = '<i class="fas fa-download"></i> Download All Courts PDFs';
+                    }
+                }
+            }
+
+            showError(message) {
+                const container = document.getElementById('resultsContainer');
+                container.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i> ${message}
+                    </div>
+                `;
+            }
+
+            showSuccess(message) {
+                const container = document.getElementById('resultsContainer');
+                container.innerHTML = `
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle"></i> ${message}
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ECourtsApp();
+        });
+    </script>
+</body>
+</html>

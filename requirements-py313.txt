@@ -1,0 +1,10 @@
+requests
+beautifulsoup4
+selenium
+flask
+flask-cors
+python-dateutil
+lxml
+Pillow
+reportlab
+webdriver-manager
